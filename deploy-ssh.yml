@@ -1,0 +1,39 @@
+---
+ - hosts: all
+   vars:
+     - provision_password: '$6$dv18RP6rX01e$WInGNuX3Kwurvbz37ZhEqs1juZdtAFu2hzeGN8ptTjc/jWMRBeC7rvX6gGHhXuN1C5epEGCt.Jq53fCH5P25q0'
+   gather_facts: no
+   remote_user: root
+ 
+   tasks:
+  
+   - name: Add a new user named provision
+     user:
+             name=provision
+             password={{ provision_password }}
+
+   - name: Add provision user to sudoers
+     copy:
+             dest: "/etc/sudoers.d/provision"
+             content: "provision ALL=(ALL) NOPASSWD: ALL" 
+   
+   - name: Deploy SSH Key
+     authorized_key: user=provision
+                     key="{{ lookup('file', '/home/provision/.ssh/id_rsa.pub') }}"
+                     state=present
+  
+   - name: Disable Root Login
+     lineinfile:
+           dest=/etc/ssh/sshd_config
+           regexp='^PermitRootLogin'
+           line="PermitRootLogin no"
+           state=present
+           backup=yes
+     notify:
+       - restart ssh
+ 
+   handlers:
+   - name: restart ssh
+     service:
+       name=sshd
+       state=restarted

@@ -1,0 +1,68 @@
+---
+- hosts: all
+  remote_user: provision
+  vars:
+          aws_region: eu-west-1
+  tasks:
+      - name: Get access key
+        local_action: command aws configure get aws_access_key_id
+        register: key_output
+
+      - name: get secret
+        local_action: command aws configure get aws_secret_access_key 
+        register: secret_output
+
+      - name: Make CA dir
+        file:
+                path: ~/grianity/certs
+                state: directory
+      - name: Copy over root.cert
+        template:
+                src: ~/ansible01/rootCA_template.cert
+                dest: "~/grianity/certs/root.cert"
+      - name: Copy provision template
+        template:
+                src: ~/ansible01/provision_template.json
+                dest: "~/grianity/certs/provision_template.json" 
+      - name: create rootCA
+        script: "~/ansible01/scripts/create_CAs.sh ${{ inventory_hostname }}"
+
+      - name: Get Registration code
+        shell: "aws iot get-registration-code --region {{aws_region}} --output text"
+        environment:
+                AWS_ACCESS_KEY_ID: "{{ key_output.stdout }}"
+                AWS_SECRET_ACCESS_KEY: "{{ secret_output.stdout }}"
+        register: registration_code
+        
+      - debug:
+              msg: "{{registration_code.stdout}}"
+
+      - name: Describe endpoint
+        shell: "aws iot describe-endpoint --region {{aws_region}}"
+        environment:
+                AWS_ACCESS_KEY_ID: "{{ key_output.stdout }}"
+                AWS_SECRET_ACCESS_KEY: "{{ secret_output.stdout }}"
+        register: endpoint
+
+      - debug:
+              msg: "{{ endpoint.stdout }}"
+
+      - name: Create CA with regestration code
+        script: ~/ansible01/scripts/create_private_CA.sh {{registration_code.stdout}}     
+
+      - name: Register CA
+        shell: "aws iot register-ca-certificate --ca-certificate file://~/grianity/certs/rootCA.pem --verification-cert file://~/grianity/certs/verificationCert.crt --set-as-active --allow-auto-registration --query certificateId --region {{aws_region}} --registration-config file://~/grianity/certs/provision_template.json"
+        environment:
+                AWS_ACCESS_KEY_ID: "{{ key_output.stdout }}"
+                AWS_SECRET_ACCESS_KEY: "{{ secret_output.stdout }}"
+        register: certificate_id
+        
+      - debug: 
+                msg: "{{ certificate_id.stdout}}" 
+
+      - name: Create final device cert
+        script: "~/ansible01/scripts/createDeviceCert.sh {{ inventory_hostname }}"
+      
+
+
+

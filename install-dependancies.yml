@@ -1,0 +1,17 @@
+---
+- hosts: all
+  remote_user: provision
+  tasks:
+
+        - name: Install Docker
+          script: pip install docker-compose
+
+        - name: Install AWS-CLI
+          script: apt install awscli
+
+
+
+
+
+
+

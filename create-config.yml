@@ -1,0 +1,56 @@
+---
+- hosts: all
+  remote_user: provision
+  vars:
+          region: "dublin"
+          aws_region: "eu-west-1"
+          type: "ev_charger"
+          owner: "grianity"
+          endpoint: "INSERTYOURENDPOINT.iot.eu-west-1.amazonaws.com"
+  tasks:
+
+        
+        - name: Make Directory
+          file:
+                  path: ~/grianity
+                  state: directory
+
+        - name: Copying over file
+          template:
+                  src: ~/ansible01/config_template.json
+                  dest: "~/grianity/config.json"
+
+        - name: Insert Server
+          lineinfile:
+                  dest: "~/grianity/config.json"
+                  regex: "\"server\": "
+                  line: "\"server\": \"{{ endpoint }}\","
+                  state: present
+        - name: Insert Uplink
+          lineinfile: 
+                  dest: "~/grianity/config.json"
+                  regexp: "\"uplink_topic\": " 
+                  line: "\"uplink_topic\": \"{{owner}}/{{aws_region}}/{{region}}/{{type}}\"," 
+                  state: present
+        - name: Insert Downlink
+          lineinfile: 
+                  dest: "~/grianity/config.json"
+                  regexp: "\"downlink_topic\":" 
+                  line: "\"downlink_topic\": \"{{owner}}/{{aws_region}}/{{region}}/{{type}}/{{inventory_hostname}}\","
+                  state: present
+
+        - name: Insert ClientID
+          lineinfile:
+                  dest: "~/grianity/config.json"
+                  regexp: "\"clientID\":"
+                  line: "\"clientID\": \"{{inventory_hostname }}\""
+                  state: present
+
+
+
+
+
+
+
+
+
